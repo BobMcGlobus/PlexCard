@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>plexglass dev preview</title>
+    <style>
+      /* Minimal HA theme variable stand-ins for local development */
+      :root {
+        --primary-background-color: #f4f3f0;
+        --card-background-color: #ffffff;
+        --ha-card-background: #ffffff;
+        --primary-text-color: #1c1c1e;
+        --secondary-text-color: #70757a;
+        --divider-color: rgba(0, 0, 0, 0.12);
+        --primary-color: #0d6efd;
+        --accent-color: #ff9800;
+        --success-color: #2e7d32;
+        --warning-color: #fb8c00;
+        --error-color: #c62828;
+        --ha-card-border-radius: 20px;
+      }
+      body.dark {
+        --primary-background-color: #121212;
+        --card-background-color: #1e1e1e;
+        --ha-card-background: #1e1e1e;
+        --primary-text-color: #e8e8e8;
+        --secondary-text-color: #9b9b9b;
+        --divider-color: rgba(255, 255, 255, 0.12);
+        --success-color: #66bb6a;
+        --error-color: #ef5350;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: var(--primary-background-color);
+        font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        color: var(--primary-text-color);
+      }
+      #wrap {
+        max-width: 440px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      #toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #toolbar button {
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--divider-color);
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="toolbar">
+        <button id="theme">Dark/Light</button>
+        <button id="width">Breit/Schmal</button>
+        <button id="style">Stil: default</button>
+        <button id="streams">Streams: 3</button>
+        <button id="layout">Layout: Poster</button>
+        <button id="bg">Hintergrund an/aus</button>
+      </div>
+      <div id="mount"></div>
+    </div>
+    <script type="module" src="/dev/demo.js"></script>
+  </body>
+</html>
