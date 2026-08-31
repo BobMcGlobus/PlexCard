@@ -105,6 +105,12 @@ export interface PlexCardConfig {
   background?: boolean;
   /** true: no outer padding */
   flush?: boolean;
+  /**
+   * Minimal mode for mobile: the card shrinks to a compact now-playing peek
+   * (who is streaming, or "nothing playing"); tapping it opens a popup with
+   * the full sections.
+   */
+  collapsed?: boolean;
   sections: SectionConfig[];
 }
 

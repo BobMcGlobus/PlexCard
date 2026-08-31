@@ -3,28 +3,68 @@ import type { HassEntity, HomeAssistant, RecentItem, SectionConfig, StreamInfo }
 /** also the sort order in the stream list (active first) */
 const ACTIVE_STATES = ['playing', 'buffering', 'paused'];
 
+/**
+ * Session identity for de-duplication. The Plex integration frequently
+ * exposes one playback as two media_player entities (app client + device
+ * client) — most visible for the server owner streaming locally. Both carry
+ * the same media_content_id and username, so that pair is one session.
+ * Falls back to the entity id when no content is playing (never merges).
+ */
+function sessionKey(e: HassEntity): string {
+  const a = e.attributes;
+  const content = a.media_content_id ?? a.media_title;
+  if (!content) return e.entity_id;
+  const user = a.username ?? a.session_username ?? a.user ?? '';
+  return `${user}|${content}`;
+}
+
+/** How rich an entity's attributes are — prefer the fuller one when merging. */
+function infoScore(e: HassEntity): number {
+  const a = e.attributes;
+  return (a.entity_picture ? 2 : 0) + (a.app_name ? 1 : 0) + Object.keys(a).length / 100;
+}
+
+/** Collapse entities that represent the same session down to one each. */
+export function dedupePlayers(entities: HassEntity[]): HassEntity[] {
+  const groups = new Map<string, HassEntity[]>();
+  for (const e of entities) {
+    const key = sessionKey(e);
+    const g = groups.get(key);
+    if (g) g.push(e);
+    else groups.set(key, [e]);
+  }
+  return [...groups.values()].map(
+    (g) =>
+      g.sort(
+        (a, b) =>
+          ACTIVE_STATES.indexOf(a.state) - ACTIVE_STATES.indexOf(b.state) ||
+          infoScore(b) - infoScore(a)
+      )[0]
+  );
+}
+
 /** media_player entities for a now_playing section: explicit list or discovery */
 export function findPlayers(hass: HomeAssistant, s: SectionConfig, brandMatch: string): HassEntity[] {
   if (s.players?.length) {
-    return s.players
+    const listed = s.players
       .map((id) => hass.states[id])
       .filter((e): e is HassEntity => !!e && ACTIVE_STATES.includes(e.state));
+    return dedupePlayers(listed);
   }
   const match = (s.match ?? brandMatch).toLowerCase();
-  return Object.values(hass.states)
-    .filter(
-      (e) =>
-        e.entity_id.startsWith('media_player.') &&
-        ACTIVE_STATES.includes(e.state) &&
-        (e.entity_id.toLowerCase().includes(match) ||
-          String(e.attributes.app_name ?? '').toLowerCase().includes(match) ||
-          String(e.attributes.friendly_name ?? '').toLowerCase().includes(match))
-    )
-    .sort(
-      (a, b) =>
-        ACTIVE_STATES.indexOf(a.state) - ACTIVE_STATES.indexOf(b.state) ||
-        a.entity_id.localeCompare(b.entity_id)
-    );
+  const found = Object.values(hass.states).filter(
+    (e) =>
+      e.entity_id.startsWith('media_player.') &&
+      ACTIVE_STATES.includes(e.state) &&
+      (e.entity_id.toLowerCase().includes(match) ||
+        String(e.attributes.app_name ?? '').toLowerCase().includes(match) ||
+        String(e.attributes.friendly_name ?? '').toLowerCase().includes(match))
+  );
+  return dedupePlayers(found).sort(
+    (a, b) =>
+      ACTIVE_STATES.indexOf(a.state) - ACTIVE_STATES.indexOf(b.state) ||
+      a.entity_id.localeCompare(b.entity_id)
+  );
 }
 
 /** "Plex (Plex Web - Microsoft Edge)" → "Plex Web - Microsoft Edge" */

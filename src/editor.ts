@@ -53,6 +53,7 @@ const LABELS: Record<string, Record<string, string>> = {
     status_entity: 'Server status entity (online dot)',
     background: 'Card background',
     flush: 'Edge to edge (no outer padding)',
+    collapsed: 'Minimal mode (peek + tap for popup)',
     add_section: 'Add section',
     section_title: 'Heading (empty = hidden)',
     icon: 'Icon',
@@ -108,6 +109,7 @@ const LABELS: Record<string, Record<string, string>> = {
     status_entity: 'Server-Status-Entität (Online-Punkt)',
     background: 'Kartenhintergrund',
     flush: 'Randlos (kein Außenabstand)',
+    collapsed: 'Minimal-Modus (Vorschau + Tipp öffnet Popup)',
     add_section: 'Sektion hinzufügen',
     section_title: 'Überschrift (leer = ausblenden)',
     icon: 'Icon',
@@ -206,6 +208,7 @@ export class PlexglassCardEditor extends LitElement {
       },
       { name: 'status_entity', selector: { entity: {} } },
       { name: 'accent', selector: { text: {} } },
+      { name: 'collapsed', selector: { boolean: {} } },
       {
         type: 'grid',
         name: '',
@@ -229,6 +232,7 @@ export class PlexglassCardEditor extends LitElement {
     if (next.card_style === 'default') delete next.card_style;
     if (next.background === true) delete next.background;
     if (next.flush === false) delete next.flush;
+    if (next.collapsed === false) delete next.collapsed;
     this._emit(next as unknown as PlexCardConfig);
   }
 
@@ -475,7 +479,7 @@ export class PlexglassCardEditor extends LitElement {
     return html`
       <ha-form
         .hass=${this.hass}
-        .data=${{ brand: 'plex', card_style: 'default', background: true, flush: false, ...this._config }}
+        .data=${{ brand: 'plex', card_style: 'default', background: true, flush: false, collapsed: false, ...this._config }}
         .schema=${this._topSchema()}
         .computeLabel=${(s: { name: string }) => this._label(s.name)}
         @value-changed=${this._topChanged}

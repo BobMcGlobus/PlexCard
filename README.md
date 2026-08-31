@@ -12,7 +12,7 @@ im Look von Plex bzw. Tautulli, vollständig Theme-kompatibel (Light & Dark).
 
 ## Features
 
-- ▶️ **Läuft gerade** (`type: now_playing`): Jede aktive Wiedergabe als Poster-Karte mit **unscharfem Backdrop**, Titel/Episode (S7 · E48), **Nutzer-Avatar**, Abspielgerät, Pause-/Puffer-Badge und einem **live mitlaufenden Fortschrittsbalken** (Position wird sekündlich aus `media_position` extrapoliert — ganz ohne Polling). Media Player werden **automatisch erkannt** (`match`, Standard nach Marke) oder fest per `players` gesetzt. Alternativ `layout: compact` für schmale Zeilen. Tautulli-Sensoren liefern die Kopfzeilen-Chips: **Stream-Anzahl, Direct Play, Transkodierung, Bandbreite**.
+- ▶️ **Läuft gerade** (`type: now_playing`): Jede aktive Wiedergabe als Poster-Karte mit **unscharfem Backdrop**, Titel/Episode (S7 · E48), **Nutzer-Avatar**, Abspielgerät, Pause-/Puffer-Badge und einem **live mitlaufenden Fortschrittsbalken** (Position wird sekündlich aus `media_position` extrapoliert — ganz ohne Polling). Media Player werden **automatisch erkannt** (`match`, Standard nach Marke) oder fest per `players` gesetzt; Sessions, die von der Plex-Integration doppelt als Entität ausgegeben werden (typisch beim Server-Besitzer im Heimnetz), werden **automatisch zusammengefasst** — keine doppelten Karten mehr. Alternativ `layout: compact` für schmale Zeilen. Tautulli-Sensoren liefern die Kopfzeilen-Chips: **Stream-Anzahl, Direct Play, Transkodierung, Bandbreite**.
 - 🗄️ **Mediathek** (`type: stats`): Bibliotheksgrößen als Kachel-Grid (Filme, Serien, Anime, …) mit Icon-Chips, lokalisierten Zahlen (1.473) und Formaten: `number`, `bytes` (18,4 TB), `duration`, `text`.
 - 🆕 **Zuletzt hinzugefügt** (`type: recently_added`): horizontales **Poster-Regal** mit NEU-Badge (< 48 h) und „vor 6 Stunden"-Zeiten. Quelle wahlweise ein Sensor im [upcoming-media-card-Format](https://github.com/custom-cards/upcoming-media-card) **oder direkt die Plex-/Jellyfin-API** (`url` + `token` — Poster kommen dann direkt vom Server).
 - 📈 **Aktivität** (`type: activity`): Stufen-Flächen-Chart der Stream-Anzahl mit **Zeitraum-Umschalter 24 h / 7 T / 30 T / 90 T** (`range`-Tabs), Jetzt/Spitzen-Chips. Kurze Fenster kommen aus der Recorder-History (WebSocket), **30 T/90 T aus den täglichen Langzeit-Statistiken** — die überleben das Purge-Fenster. Ranges frei konfigurierbar über `ranges`.
@@ -20,6 +20,7 @@ im Look von Plex bzw. Tautulli, vollständig Theme-kompatibel (Light & Dark).
 - 🏆 **Meistgesehen** (`type: top`): Medaillen-Ranking (Gold/Silber/Bronze) aus den Tautulli-Sensoren Top Film / Top Serie / Top Nutzer.
 - 📨 **Anfragen** (`type: requests`): Overseerr/Jellyseerr — Ausstehend/Genehmigt/In Arbeit/Verfügbar als Kacheln. Quelle: Sensoren (z. B. aus der Overseerr-Integration) oder direkt die API (`url` + `token`, ein Aufruf auf `/api/v1/request/count`).
 - 🎨 **Marken-Akzente** (`brand`): Plex-Bernstein (Default), Jellyfin-Lila/Blau, Emby-Grün, Tautulli, Neutral (Theme-Farbe) — oder frei per `accent`. Die Marke steuert auch die Auto-Erkennung der Player.
+- 📱 **Minimal-Modus** (`collapsed: true`): fürs mobile Dashboard schrumpft die Karte auf eine kompakte Vorschau — wer gerade streamt (eine Zeile pro Stream mit Nutzer) bzw. „Gerade läuft nichts". Ein **Tipp öffnet ein Popup** mit der kompletten Karte (alle Sektionen). Schließen per X, Hintergrund-Tipp oder Escape.
 - 🟢 **Server-Status**: `status_entity` zeigt einen pulsierenden Online-Punkt neben dem Titel.
 - 🎭 **5 Kartenstile** über `card_style`: Standard, Liquid Glass, Material You, Bubble, Magic Mirror — identisch zu Weatherglass/Health Card.
 - 🫥 **Einbettbar**: `background: false` und `flush` für die Nutzung in Containern.
@@ -132,7 +133,8 @@ sections:
 
 **Karte:** `title`, `subtitle`, `brand`, `accent`, `card_style`,
 `status_entity`, `background` (false = ohne Kartenhintergrund), `flush`
-(randlos), `sections` (Liste).
+(randlos), `collapsed` (Minimal-Modus: kompakte Vorschau, Tipp öffnet ein
+Popup mit allen Sektionen — ideal fürs mobile Dashboard), `sections` (Liste).
 
 **`now_playing`:** `players` (Liste; leer = Auto-Erkennung), `match`
 (Filter-Substring für die Erkennung, Standard = Marke), `layout`

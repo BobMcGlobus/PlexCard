@@ -25,7 +25,7 @@ import type { BrandTheme } from './brands';
 import './editor';
 import './mini-card';
 
-const CARD_VERSION = '0.1.0';
+const CARD_VERSION = '0.2.0';
 
 const CARD_STYLES = ['default', 'glass', 'material', 'bubble', 'mirror'];
 
@@ -54,6 +54,8 @@ export class PlexglassCard extends LitElement {
   @state() private _seerrCache: Record<number, RemoteCache<RequestCounts>> = {};
   /** selected range (hours) per activity section index */
   @state() private _range: Record<number, number> = {};
+  /** collapsed-mode detail popup open */
+  @state() private _popup = false;
 
   private _ticker?: number;
 
@@ -85,6 +87,7 @@ export class PlexglassCard extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.removeEventListener('keydown', this._onKey);
     if (this._ticker) {
       clearInterval(this._ticker);
       this._ticker = undefined;
@@ -254,6 +257,16 @@ export class PlexglassCard extends LitElement {
     const brand = this._brand();
     const cardClass = ['cardroot', `s-${this._cardStyle()}`, c.flush ? 'flush' : ''].join(' ');
     const vars = `--pg-accent:${brand.accent};--pg-accent2:${brand.accent2};`;
+
+    if (c.collapsed) {
+      return html`
+        ${c.background === false
+          ? html`<div class="${cardClass} collapsed nobg" style=${vars}>${this._renderPeek()}</div>`
+          : html`<ha-card class="${cardClass} collapsed" style=${vars}>${this._renderPeek()}</ha-card>`}
+        ${this._popup ? this._renderPopup(vars) : nothing}
+      `;
+    }
+
     const inner = html`
       ${this._renderHeader()}
       <div class="sections">${c.sections.map((s, i) => this._renderSection(s, i))}</div>
@@ -262,6 +275,89 @@ export class PlexglassCard extends LitElement {
       ? html`<div class="${cardClass} nobg" style=${vars}>${inner}</div>`
       : html`<ha-card class=${cardClass} style=${vars}>${inner}</ha-card>`;
   }
+
+  /* ---- collapsed (minimal) mode ----------------------------------------- */
+
+  private _renderPeek(): TemplateResult {
+    const c = this._config!;
+    const np = c.sections.find((s) => s.type === 'now_playing');
+    const streams = np ? findPlayers(this.hass, np, this._brand().match).map(toStream) : [];
+    const active = streams.length > 0;
+    const status = c.status_entity ? this.hass.states[c.status_entity] : undefined;
+    const online = status ? !['off', 'unavailable', 'unknown', '0'].includes(status.state) : undefined;
+    return html`
+      <div class="peek" @click=${() => this._openPopup()}>
+        <div class="brandmark ${active ? '' : 'idle'}">
+          <svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" /></svg>
+        </div>
+        <div class="peek-body">
+          <div class="peek-top">
+            <span class="peek-title">${c.title ?? 'Plex'}</span>
+            ${online !== undefined
+              ? html`<span class="statusdot ${online ? 'on' : 'off'}"></span>`
+              : nothing}
+            ${active
+              ? html`<span class="peek-count">${streams.length} ${streams.length === 1 ? t(this.hass, 'stream') : t(this.hass, 'streams')}</span>`
+              : nothing}
+          </div>
+          ${active
+            ? html`<div class="peek-streams">
+                ${streams.map(
+                  (st) => html`<div class="peek-row">
+                    <ha-icon
+                      class="peek-state"
+                      .icon=${st.state === 'paused' ? 'mdi:pause' : 'mdi:play'}
+                    ></ha-icon>
+                    <span class="peek-name">${st.title}</span>
+                    ${st.user ? html`<span class="peek-user">${st.user}</span>` : nothing}
+                  </div>`
+                )}
+              </div>`
+            : html`<div class="peek-idle">${t(this.hass, 'nothing_playing')}</div>`}
+        </div>
+        <ha-icon class="peek-expand" icon="mdi:chevron-right"></ha-icon>
+      </div>
+    `;
+  }
+
+  private _renderPopup(vars: string): TemplateResult {
+    const c = this._config!;
+    return html`
+      <div
+        class="pg-overlay s-${this._cardStyle()}"
+        style=${vars}
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) this._closePopup();
+        }}
+      >
+        <div class="dialog" role="dialog" aria-modal="true">
+          <div class="dialog-head">
+            ${this._renderHeader()}
+            <button class="dialog-close" @click=${() => this._closePopup()} aria-label="Close">
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="sections">${c.sections.map((s, i) => this._renderSection(s, i))}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _openPopup(): void {
+    this._popup = true;
+    window.addEventListener('keydown', this._onKey);
+  }
+
+  private _closePopup(): void {
+    this._popup = false;
+    window.removeEventListener('keydown', this._onKey);
+  }
+
+  private _onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') this._closePopup();
+  };
 
   private _renderHeader(): TemplateResult | typeof nothing {
     const c = this._config!;
@@ -1460,6 +1556,187 @@ export class PlexglassCard extends LitElement {
     .s-mirror .rank.r3 {
       background: #fff;
       color: #000;
+    }
+
+    /* ---- collapsed (minimal) mode ---- */
+    ha-card.cardroot.collapsed,
+    .cardroot.collapsed.nobg {
+      padding: 0;
+    }
+    .peek {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+    .peek .brandmark {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+    }
+    .peek .brandmark.idle {
+      background: var(--pg-tile-bg);
+      box-shadow: none;
+    }
+    .peek .brandmark.idle svg {
+      fill: var(--pg-text2);
+      filter: none;
+    }
+    .peek-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .peek-top {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .peek-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--pg-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .peek-count {
+      margin-left: auto;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: color-mix(in srgb, var(--pg-accent) 72%, var(--pg-text));
+      background: color-mix(in srgb, var(--pg-accent) 16%, transparent);
+      padding: 2px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .peek-streams {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 3px;
+    }
+    .peek-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .peek-state {
+      --mdc-icon-size: 13px;
+      color: var(--pg-accent);
+      flex: none;
+    }
+    .peek-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--pg-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .peek-user {
+      font-size: 0.76rem;
+      color: var(--pg-text2);
+      white-space: nowrap;
+      flex: none;
+    }
+    .peek-user::before {
+      content: '· ';
+    }
+    .peek-idle {
+      font-size: 0.8rem;
+      color: var(--pg-text2);
+      margin-top: 2px;
+    }
+    .peek-expand {
+      --mdc-icon-size: 22px;
+      color: var(--pg-text2);
+      flex: none;
+    }
+
+    /* ---- detail popup ---- */
+    .pg-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+      background: rgba(0, 0, 0, 0.5);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      animation: pg-fade 0.18s ease;
+    }
+    @keyframes pg-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .dialog {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--pg-card-bg);
+      color: var(--pg-text);
+      border-radius: 22px 22px 0 0;
+      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      animation: pg-slideup 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    @keyframes pg-slideup {
+      from { transform: translateY(24px); opacity: 0.6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .dialog-head {
+      position: relative;
+      padding: 16px 16px 0;
+      flex: none;
+    }
+    .dialog-head .header {
+      padding-bottom: 8px;
+      padding-right: 40px;
+    }
+    .dialog-close {
+      position: absolute;
+      top: 14px;
+      right: 12px;
+      border: none;
+      background: var(--pg-tile-bg);
+      color: var(--pg-text2);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .dialog-close:hover {
+      color: var(--pg-text);
+    }
+    .dialog-close ha-icon {
+      --mdc-icon-size: 20px;
+    }
+    .dialog-body {
+      padding: 8px 16px 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .s-mirror.pg-overlay .dialog {
+      background: #000;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+    }
+    @media (min-width: 540px) {
+      .pg-overlay {
+        align-items: center;
+      }
+      .dialog {
+        border-radius: 22px;
+      }
     }
 
     @media (max-width: 460px) {

@@ -129,6 +129,7 @@ function mkStates(streamsOn) {
             friendly_name: 'Plex (Plex Web - Microsoft Edge)',
             app_name: 'Plex Web',
             media_content_type: 'episode',
+            media_content_id: '146732',
             media_title: 'Love-Story im Polizeihauptquartier 8',
             media_series_title: 'Detektiv Conan',
             media_season: 7,
@@ -140,6 +141,22 @@ function mkStates(streamsOn) {
             entity_picture: poster('Detektiv Conan', 0),
           }
         ),
+        // owner-doubling: same session exposed as a second entity (device
+        // client). Same media_content_id + username → deduped to one card.
+        'media_player.plex_microsoft_edge': entity('media_player.plex_microsoft_edge', 'playing', {
+          friendly_name: 'Plex (Microsoft Edge)',
+          app_name: 'Plex Web',
+          media_content_type: 'episode',
+          media_content_id: '146732',
+          media_title: 'Love-Story im Polizeihauptquartier 8',
+          media_series_title: 'Detektiv Conan',
+          media_season: 7,
+          media_episode: 48,
+          media_duration: 1470,
+          media_position: 620,
+          media_position_updated_at: iso(now - 12000),
+          username: 'BobMcGlobus',
+        }),
         'media_player.plex_plex_for_lg_tv': entity('media_player.plex_plex_for_lg_tv', 'paused', {
           friendly_name: 'Plex (Plex for LG - Wohnzimmer TV)',
           app_name: 'Plex for LG',
@@ -387,6 +404,19 @@ let styleIdx = 0;
 let wide = false;
 let layoutFull = true;
 let bgOn = true;
+let collapsedOn = false;
+
+function applyCard() {
+  const cfg = structuredClone(config);
+  cfg.card_style = STYLES[styleIdx];
+  cfg.background = bgOn;
+  cfg.collapsed = collapsedOn;
+  cfg.sections[0].layout = layoutFull ? 'full' : 'compact';
+  card.setConfig(cfg);
+  card.hass = mkHass();
+  mini.setConfig({ ...miniConfig, card_style: STYLES[styleIdx] });
+  mini.hass = mkHass();
+}
 
 document.getElementById('theme').onclick = () => document.body.classList.toggle('dark');
 document.getElementById('width').onclick = () => {
@@ -395,10 +425,7 @@ document.getElementById('width').onclick = () => {
 };
 document.getElementById('style').onclick = (e) => {
   styleIdx = (styleIdx + 1) % STYLES.length;
-  card.setConfig({ ...config, card_style: STYLES[styleIdx] });
-  card.hass = mkHass();
-  mini.setConfig({ ...miniConfig, card_style: STYLES[styleIdx] });
-  mini.hass = mkHass();
+  applyCard();
   e.target.textContent = `Stil: ${STYLES[styleIdx]}`;
 };
 document.getElementById('streams').onclick = (e) => {
@@ -409,18 +436,15 @@ document.getElementById('streams').onclick = (e) => {
 };
 document.getElementById('layout').onclick = (e) => {
   layoutFull = !layoutFull;
-  const cfg = structuredClone(config);
-  cfg.card_style = STYLES[styleIdx];
-  cfg.sections[0].layout = layoutFull ? 'full' : 'compact';
-  card.setConfig(cfg);
-  card.hass = mkHass();
+  applyCard();
   e.target.textContent = `Layout: ${layoutFull ? 'Poster' : 'Kompakt'}`;
+};
+document.getElementById('minimal').onclick = (e) => {
+  collapsedOn = !collapsedOn;
+  applyCard();
+  e.target.textContent = `Minimal: ${collapsedOn ? 'an' : 'aus'}`;
 };
 document.getElementById('bg').onclick = () => {
   bgOn = !bgOn;
-  const cfg = structuredClone(config);
-  cfg.card_style = STYLES[styleIdx];
-  cfg.background = bgOn;
-  card.setConfig(cfg);
-  card.hass = mkHass();
+  applyCard();
 };
