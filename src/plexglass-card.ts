@@ -25,7 +25,7 @@ import type { BrandTheme } from './brands';
 import './editor';
 import './mini-card';
 
-const CARD_VERSION = '0.2.0';
+const CARD_VERSION = '0.2.1';
 
 const CARD_STYLES = ['default', 'glass', 'material', 'bubble', 'mirror'];
 

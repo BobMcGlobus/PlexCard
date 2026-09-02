@@ -122,40 +122,35 @@ function entity(id, state, attrs = {}) {
 function mkStates(streamsOn) {
   const players = streamsOn
     ? {
-        'media_player.plex_plex_web_microsoft_edge': entity(
-          'media_player.plex_plex_web_microsoft_edge',
+        // real Plex-integration session (has user, poster, content id, position)
+        'media_player.plex_plex_for_apple_tv_apple_tv': entity(
+          'media_player.plex_plex_for_apple_tv_apple_tv',
           'playing',
           {
-            friendly_name: 'Plex (Plex Web - Microsoft Edge)',
-            app_name: 'Plex Web',
-            media_content_type: 'episode',
-            media_content_id: '146732',
-            media_title: 'Love-Story im Polizeihauptquartier 8',
-            media_series_title: 'Detektiv Conan',
-            media_season: 7,
-            media_episode: 48,
-            media_duration: 1470,
-            media_position: 620,
+            friendly_name: 'Plex (Plex for Apple TV - Apple TV)',
+            app_name: 'Plex for Apple TV',
+            media_content_type: 'movie',
+            media_content_id: '40302',
+            media_title: 'Detektiv Conan: Das 1-Million-Dollar-Pentagramm (2024)',
+            media_library_title: 'Anime Filme',
+            media_duration: 6622,
+            media_position: 725,
             media_position_updated_at: iso(now - 12000),
             username: 'BobMcGlobus',
             entity_picture: poster('Detektiv Conan', 0),
           }
         ),
-        // owner-doubling: same session exposed as a second entity (device
-        // client). Same media_content_id + username → deduped to one card.
-        'media_player.plex_microsoft_edge': entity('media_player.plex_microsoft_edge', 'playing', {
-          friendly_name: 'Plex (Microsoft Edge)',
-          app_name: 'Plex Web',
-          media_content_type: 'episode',
-          media_content_id: '146732',
-          media_title: 'Love-Story im Polizeihauptquartier 8',
-          media_series_title: 'Detektiv Conan',
-          media_season: 7,
-          media_episode: 48,
-          media_duration: 1470,
-          media_position: 620,
-          media_position_updated_at: iso(now - 12000),
-          username: 'BobMcGlobus',
+        // device echo: the TV's own media_player reports the same Plex
+        // playback (app_name "Plex") — no user, no content id, "(2024)" absent,
+        // but identical media_duration → deduped away, keeping the card above.
+        'media_player.fernseher': entity('media_player.fernseher', 'playing', {
+          friendly_name: 'Fernseher',
+          app_name: 'Plex',
+          app_id: 'com.plexapp.plex',
+          media_content_type: 'video',
+          media_title: 'Detektiv Conan: Das 1-Million-Dollar-Pentagramm',
+          media_artist: '名探偵コナン 100万ドルの五稜星（みちしるべ）',
+          media_duration: 6622,
         }),
         'media_player.plex_plex_for_lg_tv': entity('media_player.plex_plex_for_lg_tv', 'paused', {
           friendly_name: 'Plex (Plex for LG - Wohnzimmer TV)',

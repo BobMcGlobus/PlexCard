@@ -1,6 +1,6 @@
 {
   "name": "plexglass-card",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Plexglass — a cinematic media-server dashboard card for Home Assistant: active streams (Plex, Jellyfin, Emby), library stats, watch statistics, recently added shelf, activity graph and Overseerr/Jellyseerr requests.",
   "type": "module",
   "license": "MIT",

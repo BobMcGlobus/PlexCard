@@ -3,39 +3,82 @@ import type { HassEntity, HomeAssistant, RecentItem, SectionConfig, StreamInfo }
 /** also the sort order in the stream list (active first) */
 const ACTIVE_STATES = ['playing', 'buffering', 'paused'];
 
-/**
- * Session identity for de-duplication. The Plex integration frequently
- * exposes one playback as two media_player entities (app client + device
- * client) — most visible for the server owner streaming locally. Both carry
- * the same media_content_id and username, so that pair is one session.
- * Falls back to the entity id when no content is playing (never merges).
- */
-function sessionKey(e: HassEntity): string {
-  const a = e.attributes;
-  const content = a.media_content_id ?? a.media_title;
-  if (!content) return e.entity_id;
-  const user = a.username ?? a.session_username ?? a.user ?? '';
-  return `${user}|${content}`;
+function num(v: unknown): number {
+  return typeof v === 'number' ? v : parseFloat(v as string);
 }
 
-/** How rich an entity's attributes are — prefer the fuller one when merging. */
+function user(e: HassEntity): string {
+  return String(e.attributes.username ?? e.attributes.session_username ?? e.attributes.user ?? '');
+}
+
+/** Lowercased title without a trailing " (2024)" year and collapsed spaces. */
+function normTitle(e: HassEntity): string {
+  const raw = String(e.attributes.media_title ?? e.attributes.media_series_title ?? '');
+  return raw
+    .toLowerCase()
+    .replace(/\s*\(\d{4}\)\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Whether two active players are the SAME playback. The doubling happens
+ * because the Plex integration reports a session AND the playback device's
+ * own integration (Android TV / Apple TV / cast) reports the same thing with
+ * `app_name: "Plex"` — different content id, no Plex user, a slightly
+ * different title ("… (2024)"), but the identical media_duration.
+ *
+ * Two genuinely different viewers are never merged: distinct non-empty
+ * usernames block a match. A device echo has no username, so it still merges
+ * into its owning session.
+ */
+function sameSession(a: HassEntity, b: HassEntity): boolean {
+  const ua = user(a);
+  const ub = user(b);
+  if (ua && ub && ua !== ub) return false; // two distinct users → keep both
+
+  const ca = a.attributes.media_content_id;
+  const cb = b.attributes.media_content_id;
+  if (ca != null && cb != null && String(ca) === String(cb)) return true;
+
+  const da = num(a.attributes.media_duration);
+  const db = num(b.attributes.media_duration);
+  if (!(da > 0) || !(db > 0) || Math.abs(da - db) > 5) return false;
+
+  // same-length content: matching (prefix) title, or near-identical position
+  const ta = normTitle(a);
+  const tb = normTitle(b);
+  if (ta && tb && (ta === tb || ta.startsWith(tb) || tb.startsWith(ta))) return true;
+  const pa = num(a.attributes.media_position);
+  const pb = num(b.attributes.media_position);
+  return Number.isFinite(pa) && Number.isFinite(pb) && Math.abs(pa - pb) <= 150;
+}
+
+/** Prefer the real Plex session (has user + poster + position) over an echo. */
 function infoScore(e: HassEntity): number {
   const a = e.attributes;
-  return (a.entity_picture ? 2 : 0) + (a.app_name ? 1 : 0) + Object.keys(a).length / 100;
+  return (
+    (user(e) ? 8 : 0) +
+    (a.entity_picture ? 4 : 0) +
+    (Number.isFinite(num(a.media_position)) ? 2 : 0) +
+    Object.keys(a).length / 100
+  );
 }
 
-/** Collapse entities that represent the same session down to one each. */
+/**
+ * Collapse entities that represent the same session down to one each,
+ * keeping the richest representative (real session over device echo).
+ */
 export function dedupePlayers(entities: HassEntity[]): HassEntity[] {
-  const groups = new Map<string, HassEntity[]>();
+  const clusters: HassEntity[][] = [];
   for (const e of entities) {
-    const key = sessionKey(e);
-    const g = groups.get(key);
-    if (g) g.push(e);
-    else groups.set(key, [e]);
+    const hit = clusters.find((c) => c.some((m) => sameSession(m, e)));
+    if (hit) hit.push(e);
+    else clusters.push([e]);
   }
-  return [...groups.values()].map(
-    (g) =>
-      g.sort(
+  return clusters.map(
+    (c) =>
+      c.sort(
         (a, b) =>
           ACTIVE_STATES.indexOf(a.state) - ACTIVE_STATES.indexOf(b.state) ||
           infoScore(b) - infoScore(a)
